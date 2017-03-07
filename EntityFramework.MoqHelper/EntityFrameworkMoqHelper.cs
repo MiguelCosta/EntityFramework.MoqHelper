@@ -62,6 +62,7 @@ namespace EntityFramework.MoqHelper
             dbSet.As<IQueryable<T>>().Setup(q => q.Expression).Returns(() => table.AsQueryable().Expression);
             dbSet.As<IQueryable<T>>().Setup(q => q.ElementType).Returns(() => table.AsQueryable().ElementType);
             dbSet.As<IQueryable<T>>().Setup(q => q.GetEnumerator()).Returns(() => table.AsQueryable().GetEnumerator());
+            dbSet.Setup(x => x.AsNoTracking()).Returns(dbSet.Object);
 
             return dbSet;
         }
@@ -82,6 +83,7 @@ namespace EntityFramework.MoqHelper
             dbSet.As<IQueryable<T>>().Setup(m => m.Expression).Returns(queryable.Expression);
             dbSet.As<IQueryable<T>>().Setup(m => m.ElementType).Returns(queryable.ElementType);
             dbSet.As<IQueryable<T>>().Setup(m => m.GetEnumerator()).Returns(queryable.GetEnumerator());
+            dbSet.Setup(x => x.AsNoTracking()).Returns(dbSet.Object);
 
             return dbSet;
         }
