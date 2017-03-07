@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Data.Entity.Infrastructure;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -61,6 +62,26 @@ namespace EntityFramework.MoqHelper
             dbSet.As<IQueryable<T>>().Setup(q => q.Expression).Returns(() => table.AsQueryable().Expression);
             dbSet.As<IQueryable<T>>().Setup(q => q.ElementType).Returns(() => table.AsQueryable().ElementType);
             dbSet.As<IQueryable<T>>().Setup(q => q.GetEnumerator()).Returns(() => table.AsQueryable().GetEnumerator());
+
+            return dbSet;
+        }
+
+        /// <summary>
+        /// Sets an in-memory table to simulate real data access made from DbSet 
+        /// </summary>
+        /// <typeparam name="T">Associated type (class) on dbset of the DbContext</typeparam>
+        /// <param name="dbSet">Mocked DbSet instance</param>
+        /// <param name="table">In-memory list of items</param>
+        /// <returns>Configured DbSet instance for queries on it</returns>
+        public static Mock<DbSet<T>> SetupForQueryOnAsync<T>(this Mock<DbSet<T>> dbSet, List<T> table) where T : class
+        {
+            var queryable = table.AsQueryable();
+
+            dbSet.As<IDbAsyncEnumerable<T>>().Setup(m => m.GetAsyncEnumerator()).Returns(new TestDbAsyncEnumerator<T>(queryable.GetEnumerator()));
+            dbSet.As<IQueryable<T>>().Setup(m => m.Provider).Returns(new TestDbAsyncQueryProvider<T>(queryable.Provider));
+            dbSet.As<IQueryable<T>>().Setup(m => m.Expression).Returns(queryable.Expression);
+            dbSet.As<IQueryable<T>>().Setup(m => m.ElementType).Returns(queryable.ElementType);
+            dbSet.As<IQueryable<T>>().Setup(m => m.GetEnumerator()).Returns(queryable.GetEnumerator());
 
             return dbSet;
         }
@@ -150,6 +171,26 @@ namespace EntityFramework.MoqHelper
         {
             dbSet.Setup(set => set.Find(It.IsAny<int>()))
                 .Returns<object[]>(ids => table.FirstOrDefault(y => (int)typeof(T).GetProperty(IDPropertyName).GetValue(y, null) == (int)ids[0]));
+
+            return dbSet;
+        }
+
+        /// <summary>
+        /// Mock for Entity Framework 'DbSet.FindAsync' method to work with in-memory table
+        /// </summary>
+        /// <typeparam name="T">Associated type (class) on dbset of the DbContext</typeparam>
+        /// <param name="dbSet">Mocked DbSet instance</param>
+        /// <param name="table">In-memory list of items</param>
+        /// <param name="IDPropertyName">Basically is the name of the referenced property as the primary key</param>
+        /// <returns>Configured DbSet instance for mock calls on 'DbSet.FindAsync' method</returns>
+        public static Mock<DbSet<T>> WithFindAsync<T>(this Mock<DbSet<T>> dbSet, List<T> table, string IDPropertyName) where T : class
+        {
+            dbSet.Setup(m => m.FindAsync(It.IsAny<object[]>()))
+                .Returns<object[]>(
+                (objs) => Task.Run(() =>
+                {
+                    return table.FirstOrDefault(y => (int)typeof(T).GetProperty(IDPropertyName).GetValue(y, null) == (int)objs[0]);
+                }));
 
             return dbSet;
         }

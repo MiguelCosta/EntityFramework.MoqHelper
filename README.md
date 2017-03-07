@@ -43,6 +43,39 @@ public void Customer_CRUD_operations_basics()
     customerService.GetByID(customer.CustomerID).Should().BeNull();
 }
 ```
+
+For async methods:
+
+```cs
+[TestMethod]
+public void Customer_CRUD_operations_basics()
+{
+    var customer = new Customer() { Name = "Foo Bar", Address = "Los Angeles, CA" };
+
+    var customers = new List<Customer>();
+    var mockSet = EntityFrameworkMoqHelper.CreateMockForDbSet<Customer>()
+                                                    .SetupForQueryOnAsync(customers)
+                                                    .WithAdd(customers, "CustomerID")//overwritten to simulate behavior of auto-increment database
+                                                    .WithFindAsync(customers, "CustomerID")
+                                                    .WithRemove(customers);
+
+    var mockContext = EntityFrameworkMoqHelper.CreateMockForDbContext<DemoContext, Customer>(mockSet);
+
+    var customerService = new CustomerService(mockContext.Object);
+
+    customerService.Insert(customer);
+
+    customers.Should().Contain(x => x.CustomerID == customer.CustomerID);
+
+    //Testing GetByID (and DbSet.FindAsync) method
+    customerService.GetByIDAsync(customer.CustomerID).Result.Should().NotBeNull();
+
+    //Testing Remove method
+    customerService.Remove(customer);
+
+    customerService.GetByID(customer.CustomerID).Should().BeNull();
+}
+```
   
 ### Nuget Package
 This repository is a source code and samples about how to use for nuget package EntityFramework.MoqHelper
